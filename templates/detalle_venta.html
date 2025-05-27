@@ -1,0 +1,36 @@
+{% extends 'layout.html' %}
+{% block body %}
+<body class="bg-light">
+  <div class="container mt-5">
+    <div class="row justify-content-center">
+      <div class="col-md-10">
+        <div class="card shadow">
+          <div class="card-body">
+            <h3 class="card-title text-center mb-4">Detalle de Venta</h3>
+
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <p><strong>Factura:</strong> {{ venta.NumFactura }}</p>
+                <p><strong>Fecha:</strong> {{ venta.FechaHora }}</p>
+                <p><strong>Cliente:</strong> {{ venta.ClienteNombre }}</p>
+                <p><strong>Forma de Pago:</strong> {{ venta.FormaPago }}</p>
+              </div>
+              <div class="col-md-6 text-md-end">
+                <p><strong>Total:</strong> {{ venta.Total }}</p>
+                <p><strong>IVA Total:</strong> {{ venta.IvaTotal }}</p>
+                <p><strong>Descuento:</strong> {{ venta.Descuento }}</p>
+              </div>
+            </div>
+
+
+            <div class="text-center mt-4">
+              <a href="{{ url_for('carolina') }}" class="btn btn-secondary">Volver a Venta</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+
+{% endblock %}
