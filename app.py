@@ -12,7 +12,7 @@ app = Flask(__name__)
 app.secret_key = 'clave_secreta_segura'
 
 #coneccion de mysql
-app.config['MYSQL_HOST'] = 'localhost'
+app.config['MYSQL_HOST'] = 'localhost' 
 app.config['MYSQL_USER'] = 'root'
 app.config['MYSQL_PASSWORD'] = ''
 app.config['MYSQL_DB'] = 'opticatriem'
