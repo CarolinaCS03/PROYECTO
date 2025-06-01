@@ -1,0 +1,33 @@
+{% extends 'layout.html' %}
+
+{% block body %}
+
+<div class="row justify-content-center mt-5">
+  <div class="col-md-6">
+    <div class="card card-body">
+      <h2 class="text-center">Editar Compra</h2>
+
+      <form action="/update_compra/{{ compra.0 }}" method="POST">
+        <div class="form-group">
+          <input type="text" name="Distribuidor" placeholder="Distribuidor" value="{{ compra.1 }}" class="form-control" required>
+        </div>
+
+        <div class="form-group">
+          <input type="text" name="Empresa" placeholder="Nombre de la Empresa" value="{{ compra.2 }}" class="form-control" required>
+        </div>
+
+        <div class="form-group">
+          <input type="text" name="Descp" placeholder="Descripción de la compra" value="{{ compra.3 }}" class="form-control" required>
+        </div>
+
+        <div class="form-group">
+          <input type="number" step="0.01" name="Costo" placeholder="Costo total" value="{{ compra.4 }}" class="form-control" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Actualizar Compra</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
