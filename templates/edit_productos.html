@@ -1,0 +1,44 @@
+{% extends 'layout.html' %}
+{% block body %}
+
+<div class="row justify-content-center mt-5">
+  <div class="col-md-6">
+    <div class="card card-body">
+      <h2 class="text-center">Editar Producto</h2>
+
+      <form action="/update_productos/{{ producto.0 }}" method="POST">
+
+  <div class="form-group">
+    <input type="text" name="Codigo" placeholder="Código del Producto" value="{{ producto.1 }}" class="form-control" required>
+  </div>
+
+  <div class="form-group">
+    <label for="TipoLente">Tipo de Lente</label>
+    <select name="TipoLente" class="form-control" required>
+      <option value="Monofocal" {% if producto.2 == 'Monofocal' %}selected{% endif %}>Monofocal</option>
+      <option value="Bifocal" {% if producto.2 == 'Bifocal' %}selected{% endif %}>Bifocal</option>
+      <option value="Progresivo" {% if producto.2 == 'Progresivo' %}selected{% endif %}>Progresivo</option>
+      <option value="Lentes de Contacto" {% if producto.2 == 'Lentes de Contacto' %}selected{% endif %}>Lentes de Contacto</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <textarea name="Descripcion" placeholder="Descripción" class="form-control">{{ producto.3 }}</textarea>
+  </div>
+
+  <div class="form-group">
+    <input type="number" name="Stock" placeholder="Stock" value="{{ producto.4 }}" class="form-control" required>
+  </div>
+
+  <div class="form-group">
+    <input type="number" step="0.01" name="Precio" placeholder="Precio" value="{{ producto.5 }}" class="form-control" required>
+  </div>
+
+
+        <button type="submit" class="btn btn-primary btn-block">Actualizar Producto</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
