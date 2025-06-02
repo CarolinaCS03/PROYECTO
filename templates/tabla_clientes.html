@@ -1,0 +1,99 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="text-center mb-4">Gestión de Clientes</h1>
+    <div class="mb-3">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addClienteModal">Agregar Cliente</button>
+    </div>
+    <table class="table table-bordered table-striped">
+        <thead class="table-dark text-center">
+            <tr>
+                <th>Cedula</th>
+                <th>Nombres</th>
+                <th>Apellidos</th>
+                <th>Telefono</th>
+                <th>Direccion</th>
+                <th>Correo</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cliente in clientes %}
+            <tr>
+                <td>{{ cliente.cedula }}</td>
+                <td>{{ cliente.nombres }}</td>
+                <td>{{ cliente.apellidos }}</td>
+                <td>{{ cliente.telefono }}</td>
+                <td>{{ cliente.direccion }}</td>
+                <td>{{ cliente.correo }}</td>
+
+                <td>
+                    <a href="{{ url_for('editar_cliente', id=cliente.id) }}" class="btn btn-warning btn-sm">Editar</a>
+                    <form action="{{ url_for('eliminar_cliente', id=cliente.id) }}" method="POST" style="display: inline;">
+                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Estás seguro de que deseas eliminar este cliente?');">
+                            Eliminar
+                        </button>
+                    </form>
+                </td>
+            </tr>
+
+            <!-- Modal para editar cliente -->
+            
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Modal para agregar clientes -->
+<div class="modal fade" id="addClienteModal" tabindex="-1" aria-labelledby="addClienteLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addClienteLabel">Agregar Cliente</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <form method="POST" action="{{ url_for('add_cliente') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="cedula" class="form-label">Cedula del usuario</label>
+                        <input type="number" class="form-control" id="cedula" name="cedula" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="nombres">Nombres</label>
+                        <input type="text" class="form-control" id="nombres" name="nombres" required>
+                    </div>
+        
+                    <div class="form-group">
+                        <label for="apellidos">Apellidos</label>
+                        <input type="text" class="form-control" id="apellidos" name="apellidos" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="telefono">Telefono</label>
+                        <input type="text" class="form-control" id="telefono" name="telefono" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="direccion">Direccion</label>
+                        <input type="text" class="form-control" id="direccion" name="direccion" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="correo">Correo</label>
+                        <input type="text" class="form-control" id="correo" name="correo" required>
+                    </div>
+    
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Agregar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
