@@ -1,0 +1,87 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="text-center mb-4">Gestión de Productos</h1>
+    <div class="mb-3">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProductoModal">Registrar Producto</button>
+    </div>
+    <table class="table table-bordered table-striped">
+        <thead class="table-dark text-center">
+            <tr>
+                <th>Tipo de Lente</th>
+                <th>Descripción</th>
+                <th>Stock</th>
+                <th>Precio</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for producto in productos %}
+            <tr>
+                <td>{{ producto.tipo_lente }}</td>  <!-- Mostrar el nombre completo del cliente -->
+                <td>{{ producto.descripcion }}</td>
+                <td>{{ producto.stock }}</td>
+                <td>{{ producto.precio }}</td>
+                <td>
+                    <a href="{{ url_for('editar_producto', id=producto.id) }}" class="btn btn-warning btn-sm">Editar</a>
+                    <form action="{{ url_for('eliminar_producto', id=producto.id) }}" method="POST" style="display: inline;">
+                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Estás seguro de que deseas eliminar este producto?');">
+                            Eliminar
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>        
+    </table>
+</div>
+
+<!-- Modal para agregar eventos -->
+<div class="modal fade" id="addProductoModal" tabindex="-1" aria-labelledby="addProductoLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addProductoLabel">Agregar Producto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <form method="POST" action="{{ url_for('add_producto') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="tipo_lente" class="form-label">Tipo de lente</label>
+                        <select class="form-select" id="tipo_lente" name="tipo_lente" required>
+                            <option value="" disabled selected>Seleccione el tipo de lente</option>
+                            <option value="Lente Monofocal">Lente Monofocal</option>
+                            <option value="Lente Bifocal">Lente Bifocal</option>
+                            <option value="Lente Progresivo">Lente Progresivo</option>
+                            <option value="Lente Fotocromático">Lente Fotocromático</option>
+                            <option value="Lente Polarizado">Lente Polarizado</option>
+                            <option value="Lente Antirreflejo">Lente Antirreflejo</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="descripcion">Descripción</label>
+                        <textarea class="form-control" id="descripcion" name="descripcion" rows="3" required></textarea>
+                    </div>
+        
+                    <div class="form-group">
+                        <label for="stock">Stock</label>
+                        <input type="number" class="form-control" id="stock" name="stock" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="precio">Precio</label>
+                        <input type="number" class="form-control" id="precio" name="precio" step="0.01" required>
+                    </div>
+        
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Agregar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
