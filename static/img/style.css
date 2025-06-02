@@ -1,0 +1,138 @@
+/* Fondo general con imagen y tono pastel encima */
+body {
+    margin: 0;
+    padding: 0;
+    background-image: url('/static/img/optica.jpg');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    min-height: 100vh;
+    font-family: 'Segoe UI', sans-serif;
+    background-color: rgba(255, 240, 245, 0.7); /* Rosa claro sobre imagen */
+    backdrop-filter: brightness(0.95);
+}
+
+/* Contenedor de texto pastel */
+.text-container {
+    background: rgba(255, 255, 255, 0.85);
+    padding: 25px 30px;
+    border-radius: 18px;
+    border: 2px dashed #f7b8d4;
+    max-width: 700px;
+    margin: 40px auto;
+    color: #5e3366;
+    box-shadow: 0 4px 15px rgba(255, 182, 193, 0.35);
+}
+
+/* Títulos principales */
+h1, h2, h3 {
+    color: #d94f90;
+    font-weight: 700;
+    text-shadow: 1px 1px 3px rgba(255, 200, 221, 0.7);
+    text-align: center;
+}
+
+/* Párrafo destacado */
+p.lead {
+    color: #6d4c5b;
+    font-size: 18px;
+    text-align: center;
+    text-shadow: 1px 1px 2px rgba(255, 200, 221, 0.4);
+}
+
+/* Barra inferior pastel */
+.footer-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    background-color: #ffe4ec;
+    color: #a64d79;
+    padding: 12px 0;
+    border-top: 2px solid #f7b8d4;
+    font-size: 14px;
+    z-index: 1000;
+}
+
+/* Tablas estilo pastel */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #fff0f5; /* fondo tabla rosado claro */
+    box-shadow: 0 2px 10px rgba(255, 182, 193, 0.25);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+thead {
+    background-color: #c94f7c; /* cabecera más fuerte */
+    color: white;
+}
+
+th, td {
+    padding: 12px 15px;
+    text-align: center;
+    border-bottom: 1px solid #f9d3e3;
+}
+
+/* Botones pastel fuertes */
+.btn, .btn-primary, .btn-success, .btn-warning, .btn-info, .btn-danger, .btn-secondary {
+    background-color: #f7679f !important;  /* rosado fuerte */
+    border-color: #f7679f !important;
+    color: white !important;
+    font-weight: bold;
+    border-radius: 8px;
+    box-shadow: 0 3px 6px rgba(247, 103, 159, 0.4);
+    transition: all 0.3s ease-in-out;
+}
+
+.btn:hover {
+    background-color: #e04d87 !important;
+    border-color: #e04d87 !important;
+}
+
+/* Botones outline pastel */
+.btn-outline-primary,
+.btn-outline-success,
+.btn-outline-warning,
+.btn-outline-danger,
+.btn-outline-info {
+    background-color: transparent !important;
+    border: 2px solid #f78fb3 !important;
+    color: #f78fb3 !important;
+}
+
+.btn-outline-primary:hover,
+.btn-outline-success:hover,
+.btn-outline-warning:hover,
+.btn-outline-danger:hover,
+.btn-outline-info:hover {
+    background-color: #f78fb3 !important;
+    color: white !important;
+}
+
+/* Tarjetas pastel */
+.card {
+    background-color: #fffafd;
+    border: 1px solid #ffc0cb;
+    border-radius: 15px;
+    box-shadow: 0 4px 12px rgba(255, 182, 193, 0.3);
+}
+
+/* Inputs formulario */
+.form-control {
+    background-color: #fffafd;
+    border: 1px solid #f5c6da;
+    border-radius: 8px;
+    color: #5e3366;
+}
+
+/* Links pastel */
+a {
+    color: #cc4e74;
+}
+a:hover {
+    color: #a8325d;
+    text-decoration: underline;
+}
