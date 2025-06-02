@@ -1,0 +1,85 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="text-center mb-4">Gestión de Compras</h1>
+    <div class="mb-3">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCompraModal">Agregar Compra</button>
+    </div>
+    <table class="table table-bordered table-striped">
+        <thead class="table-dark text-center">
+            <tr>
+                <th>Distribuidor</th>
+                <th>Empresa</th>
+                <th>Descripción</th>
+                <th>Costo</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for compra in compras %}
+            <tr>
+                <td>{{ compra.distribuidor }}</td>
+                <td>{{ compra.empresa }}</td>
+                <td>{{ compra.descripcion }}</td>
+                <td>{{ compra.costo }}</td>
+                <td>
+                    <a href="{{ url_for('editar_compra', id=compra.id) }}" class="btn btn-warning btn-sm">Editar</a>
+                    <form action="{{ url_for('eliminar_compra', id=compra.id) }}" method="POST" style="display: inline;">
+                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Estás seguro de que deseas eliminar esta compra?');">
+                            Eliminar
+                        </button>
+                    </form>
+                </td>
+            </tr>
+
+            <!-- Modal para editar localidad -->
+            
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Modal para agregar localidad -->
+<div class="modal fade" id="addCompraModal" tabindex="-1" aria-labelledby="addCompraLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addCompraLabel">Agregar Compra</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <form method="POST" action="{{ url_for('add_compra') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="distribuidor" class="form-label">Nombre de distribuidor</label>
+                        <input type="text" class="form-control" id="distribuidor" name="distribuidor" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="empresa">Empresa</label>
+                        <input type="text" class="form-control" id="empresa" name="empresa" required>
+                    </div>
+        
+                    <div class="form-group">
+                        <label for="descripcion">Descripción</label>
+                        <textarea class="form-control" id="descripcion" name="descripcion" rows="3" required></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="costo">Costo</label>
+                        <input type="number" class="form-control" id="costo" name="costo" step="0.01" required>
+                    </div>
+        
+                
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Agregar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
