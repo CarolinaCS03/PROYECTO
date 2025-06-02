@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Venta</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <h1 class="my-4">Editar Venta</h1>
+        <form method="POST">
+            <div class="mb-3">
+                <label for="cedula" class="form-label">Cedula del usuario</label>
+                <input type="number" class="form-control" id="cedula" name="cedula" value="{{ venta.cedula }}" required>
+            </div>
+            
+            <div class="mb-3">
+                <label for="precio_total" class="form-label">Precio_total</label>
+                <input type="number" class="form-control" id="precio_total" name="precio_total" value="{{ venta.precio_total }}" required>
+            </div>
+            <div class="mb-3">
+                <label for="iva_total" class="form-label">Iva_total</label>
+                <input type="number" class="form-control" id="iva_total" name="iva_total" value="{{ venta.iva_total }}" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+        </form>
+        <a href="{{ url_for('ventas') }}" class="btn btn-secondary mt-3">Volver a la lista de ventas</a>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
