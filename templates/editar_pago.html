@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Registro de Pago</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <h1 class="my-4">Editar Registro de Pago</h1>
+        <form method="POST">
+            <div class="mb-3">
+                <label for="id_venta" class="form-label">ID Venta</label>
+                <input type="text" class="form-control" id="id_venta" name="id_venta" value="{{ pago.id_venta }}" required>
+            </div>
+            <div class="mb-3">
+                <label for="monto" class="form-label">Monto</label>
+                <input type="number" class="form-control" id="monto" name="monto" value="{{ pago.monto }}" required>
+            </div>
+            <div class="mb-3">
+                <label for="fecha_pago" class="form-label">Fecha Pago</label>
+                <input type="date" class="form-control" id="fecha_pago" name="fecha_pago" value="{{ pago.fecha_pago }}" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="estado_pago" class="form-label">Estado Pago</label>
+                <input type="text" class="form-control" id="estado_pago" name="estado_pago" value="{{ pago.estado_pago }}" required>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+        </form>
+        <a href="{{ url_for('pagos') }}" class="btn btn-secondary mt-3">Volver a la lista de pagos</a>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
