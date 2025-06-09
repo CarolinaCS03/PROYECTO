@@ -323,3 +323,195 @@ def generar_factura(pago_id):
     nombre_pdf = "factura.pdf"
     pdf.output(nombre_pdf)
     return send_file(nombre_pdf, as_attachment=True)
+
+# ----------------------- VENTAS -----------------------
+@app.route('/ventas')
+def ventas():
+    cur = mysql.connection.cursor()
+    cur.execute('SELECT id, cedula, precio_total, iva_total FROM ventas')
+    data = cur.fetchall()
+    ventas = [{'id': row[0], 'cedula': row[1], 'precio_total': row[2], 'iva_total': row[3]} for row in data]
+    cur.close()
+    return render_template('tabla_ventas.html', ventas=ventas)
+
+
+@app.route('/ventas/add', methods=['POST'])
+def add_venta():
+    if request.method == 'POST':
+        cedula = request.form['cedula']
+        subtotal = float(request.form['subtotal'])
+        iva_total = float(request.form['iva_total'])
+        precio_total = float(request.form['precio_total'])
+        productos_str = request.form['productos[]']
+        productos = productos_str.split(',') if productos_str else []       
+        # 1. Insertar la venta
+        cur = mysql.connection.cursor()
+        cur.execute("""
+            INSERT INTO ventas (cedula, precio_total, iva_total) 
+            VALUES (%s, %s, %s)
+        """, (cedula, precio_total, iva_total))
+
+        id_venta = cur.lastrowid  # Obtener el ID de la venta recién insertada
+
+        # 2. Insertar los detalles de la venta
+        print(productos)
+        for producto_id in productos:
+            # Obtener precio e IVA del producto actual desde la BD
+            cur.execute("SELECT precio_base, iva_total FROM productos WHERE id = %s", (producto_id,))
+            producto = cur.fetchone()
+
+            if producto:
+                precio = producto[0]
+                iva = producto[1]
+                cantidad = 1  # podrías tomarla de `cantidades` si se usa
+
+                cur.execute("""
+                    INSERT INTO detalle_venta (id_venta, id_producto, cantidad, precio_unitario, iva_unitario)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (id_venta, producto_id, cantidad, precio, iva))
+
+        mysql.connection.commit()
+        flash('Venta y detalle de venta agregados correctamente')
+        return redirect(url_for('ventas'))
+    
+# ----------------------- EDITAR VENTAS -----------------------
+@app.route('/editar_venta/<int:id>', methods=['GET', 'POST'])
+def editar_venta(id):
+    conn = mysql.connection
+    cur = conn.cursor()
+
+    # ─── 1. Obtener cabecera ───
+    cur.execute("SELECT id, cedula, precio_total, iva_total FROM ventas WHERE id=%s", (id,))
+    row = cur.fetchone()
+    if not row:
+        flash("Venta no encontrada", "danger")
+        return redirect(url_for('ventas'))
+
+    venta = {
+        "id": row[0],
+        "cedula": row[1],
+        "precio_total": float(row[2]),
+        "iva_total": float(row[3])
+    }
+
+    # ─── 2. Obtener detalles ───
+    cur.execute("""
+        SELECT dv.id_producto,
+               p.tipo_lente,
+               dv.precio_unitario,
+               dv.iva_unitario
+        FROM detalle_venta dv
+        JOIN productos p ON p.id = dv.id_producto
+        WHERE dv.id_venta = %s
+    """, (id,))
+    detalles = cur.fetchall()
+
+    productos_previos = [
+        {
+            "id_producto": d[0],
+            "nombre": d[1],
+            "precio_unitario": float(d[2]),
+            "iva_unitario": float(d[3])
+        } for d in detalles
+    ]
+
+    if request.method == 'POST':
+        cedula = request.form['cedula']
+        precio_total = float(request.form['precio_total'])
+        iva_total = float(request.form['iva_total'])
+
+        cur.execute("""
+            UPDATE ventas
+               SET cedula=%s,
+                   precio_total=%s,
+                   iva_total=%s
+             WHERE id=%s
+        """, (cedula, precio_total, iva_total, id))
+
+        cur.execute("DELETE FROM detalle_venta WHERE id_venta=%s", (id,))
+
+        total_prod = int(request.form['total_productos'])
+        for i in range(total_prod):
+            prod_id = int(request.form[f'producto_id_{i}'])
+            precio = float(request.form[f'precio_{i}'])
+            iva = float(request.form[f'iva_{i}'])
+
+            cur.execute("""
+                INSERT INTO detalle_venta
+                       (id_venta, id_producto, cantidad, precio_unitario, iva_unitario)
+                VALUES (%s, %s, 1, %s, %s)
+            """, (id, prod_id, precio, iva))
+
+        conn.commit()
+        cur.close()
+        flash("Venta actualizada correctamente", "success")
+        return redirect(url_for('ventas'))
+
+    subtotal_front = venta["precio_total"] - venta["iva_total"]
+
+    cur = conn.cursor()
+    cur.execute("SELECT id, tipo_lente, precio_base, iva_total FROM productos")
+    todos_lentes = [
+        {"id": r[0], "tipo_lente": r[1], "precio": float(r[2]), "iva": float(r[3])}
+        for r in cur.fetchall()
+    ]
+    cur.close()
+
+    return render_template(
+        "editar_venta.html",
+        venta=venta,
+        subtotal_front=f"{subtotal_front:.2f}",
+        productos_previos=productos_previos,
+        todos_lentes=todos_lentes
+    )
+
+
+
+@app.route('/eliminar_venta/<int:id>', methods=['POST'])
+def eliminar_venta(id):
+    cur = mysql.connection.cursor()
+    cur.execute('DELETE FROM ventas WHERE id = %s', (id,))
+    mysql.connection.commit()  # Confirmar la eliminación
+    flash('Venta eliminado correctamente')
+    return redirect(url_for('ventas'))
+
+@app.route("/detalle_venta/<int:id>")
+def detalle_venta(id):
+    cur = mysql.connection.cursor()
+    
+    # Obtener datos de la venta y su cliente
+    cur.execute("""
+        SELECT v.id, v.cedula, c.nombres, c.apellidos, c.telefono,
+               v.precio_total, v.iva_total
+        FROM ventas v
+        JOIN clientes c ON v.cedula = c.cedula
+        WHERE v.id = %s
+    """, (id,))
+    row = cur.fetchone()
+    if not row:
+        return "Venta no encontrada", 404
+    
+    cols = [col[0] for col in cur.description]
+    venta = dict(zip(cols, row))
+    
+    # Obtener productos relacionados con la venta desde tabla 'detalle_venta'
+    cur.execute("""
+        SELECT p.tipo_lente,
+               dv.precio_unitario,
+               dv.iva_unitario,
+               (dv.precio_unitario * dv.cantidad) AS total_unitario
+        FROM detalle_venta dv
+        JOIN productos p ON dv.id_producto = p.id
+        WHERE dv.id_venta = %s
+    """, (id,))
+    rows = cur.fetchall()
+
+    productos = [dict(zip([col[0] for col in cur.description], row)) for row in rows]
+    
+
+    cur.close()
+    for p in productos:
+        p['precio_unitario'] = p['precio_unitario'] or 0
+        p['iva_unitario'] = p['iva_unitario'] or 0
+    print(productos)
+    return render_template('detalle_venta.html', venta=venta, productos=productos)
