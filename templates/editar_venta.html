@@ -1,0 +1,127 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<h2>Editar Venta</h2>
+
+<form method="POST">
+  <div class="mb-3">
+    <label for="cedula" class="form-label">Cédula</label>
+    <input type="text" name="cedula" id="cedula" class="form-control" value="{{ venta.cedula }}" required>
+  </div>
+
+  <hr>
+  <h4>Productos</h4>
+  <div id="productos_container" class="mb-3"></div>
+
+  <button type="button" class="btn btn-secondary mb-3" onclick="agregarProducto()">+ Agregar Producto</button>
+
+  <div class="row mb-3">
+    <div class="col">
+      <label>Subtotal</label>
+      <input type="text" id="subtotal_visible" class="form-control" readonly>
+    </div>
+    <div class="col">
+      <label>IVA total</label>
+      <input type="text" id="iva_total_visible" class="form-control" readonly>
+    </div>
+    <div class="col">
+      <label>Total</label>
+      <input type="text" id="precio_total_visible" class="form-control" readonly>
+    </div>
+  </div>
+
+  <input type="hidden" name="subtotal" id="subtotal">
+  <input type="hidden" name="iva_total" id="iva_total">
+  <input type="hidden" name="precio_total" id="precio_total">
+  <input type="hidden" name="total_productos" id="total_productos">
+
+  <button type="submit" class="btn btn-success">Guardar Cambios</button>
+  <a href="{{ url_for('ventas') }}" class="btn btn-danger">Cancelar</a>
+</form>
+
+<script>
+let productos = {{ todos_lentes|tojson }};
+let productos_previos = {{ productos_previos|tojson }};
+let idx = 0;
+
+function agregarProducto(prod = null) {
+  const container = document.getElementById('productos_container');
+  const div = document.createElement('div');
+  div.className = 'row mb-2 align-items-end';
+  div.innerHTML = `
+    <div class="col">
+      <label>Producto</label>
+      <select name="producto_id_${idx}" class="form-select" onchange="actualizarPrecio(${idx})">
+        ${productos.map(p => `
+          <option value="${p.id}" ${prod && prod.id_producto == p.id ? 'selected' : ''}>${p.tipo_lente}</option>
+        `).join('')}
+      </select>
+    </div>
+    <div class="col">
+      <label>Precio</label>
+      <input type="text" name="precio_${idx}" class="form-control" readonly>
+    </div>
+    <div class="col">
+      <label>IVA</label>
+      <input type="text" name="iva_${idx}" class="form-control" readonly>
+    </div>
+    <div class="col-auto">
+      <button type="button" class="btn btn-danger" onclick="eliminarProducto(this)">X</button>
+    </div>
+  `;
+  container.appendChild(div);
+  actualizarPrecio(idx);
+  idx++;
+  pintar();
+}
+
+function actualizarPrecio(i) {
+  const select = document.querySelector(`[name="producto_id_${i}"]`);
+  const precioInput = document.querySelector(`[name="precio_${i}"]`);
+  const ivaInput = document.querySelector(`[name="iva_${i}"]`);
+  const id = parseInt(select.value);
+  const p = productos.find(x => x.id === id);
+  if (p) {
+    precioInput.value = p.precio.toFixed(2);
+    ivaInput.value = p.iva.toFixed(2);
+    pintar();
+  }
+}
+
+function eliminarProducto(btn) {
+  btn.closest('.row').remove();
+  pintar();
+}
+
+function pintar() {
+  let sub = 0, ivaTot = 0;
+  for (let i = 0; i < idx; i++) {
+    const precioInput = document.querySelector(`[name="precio_${i}"]`);
+    const ivaInput = document.querySelector(`[name="iva_${i}"]`);
+    const productoInput = document.querySelector(`[name="producto_id_${i}"]`);
+
+    if (!precioInput || !ivaInput || !productoInput) continue;
+
+    const precio = parseFloat(precioInput.value) || 0;
+    const iva = parseFloat(ivaInput.value) || 0;
+
+    sub += precio;
+    ivaTot += iva;
+  }
+
+  document.getElementById('subtotal_visible').value = sub.toFixed(2);
+  document.getElementById('iva_total_visible').value = ivaTot.toFixed(2);
+  document.getElementById('precio_total_visible').value = (sub + ivaTot).toFixed(2);
+
+  document.getElementById('subtotal').value = sub.toFixed(2);
+  document.getElementById('iva_total').value = ivaTot.toFixed(2);
+  document.getElementById('precio_total').value = (sub + ivaTot).toFixed(2);
+
+  const activos = document.querySelectorAll('[name^="producto_id_"]');
+  document.getElementById('total_productos').value = activos.length;
+}
+
+productos_previos.forEach(p => agregarProducto(p));
+</script>
+
+{% endblock %}
