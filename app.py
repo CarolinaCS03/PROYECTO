@@ -184,3 +184,142 @@ def eliminar_cliente(id):
     flash('Cliente eliminado correctamente')
     return redirect(url_for('clientes'))
 
+# ----------------------- FACTURAS -----------------------
+@app.route('/generar_factura/<int:pago_id>')
+def generar_factura(pago_id):
+    cur = mysql.connection.cursor(DictCursor)
+
+    # 1. Datos del pago, venta y cliente
+    cur.execute("""
+        SELECT pg.id AS pago_id, pg.monto, pg.fecha_pago, pg.estado_pago,
+               v.id AS venta_id, v.precio_total AS venta_total, v.iva_total AS venta_iva,
+               IFNULL(c.nombres, 'Cliente sin nombre') AS nombres,
+               IFNULL(c.apellidos, '') AS apellidos,
+               IFNULL(c.correo, 'sin_correo@demo.com') AS correo
+        FROM pagos pg
+        JOIN ventas v ON v.id = pg.id_venta
+        LEFT JOIN clientes c ON TRIM(v.cedula) = TRIM(c.cedula)
+        WHERE pg.id = %s
+    """, (pago_id,))
+    pago = cur.fetchone()
+
+    if not pago:
+        return "Pago no encontrado", 404
+
+    venta_id = pago['venta_id']
+
+    # 2. Productos
+    cur.execute("""
+        SELECT p.tipo_lente, p.descripcion,
+               dv.precio_unitario, dv.iva_unitario
+        FROM detalle_venta dv
+        JOIN productos p ON p.id = dv.id_producto
+        WHERE dv.id_venta = %s
+    """, (venta_id,))
+    productos = cur.fetchall()
+
+    # 3. Total pagado acumulado si está pendiente
+    monto_pagado = pago['monto']
+    monto_faltante = 0
+    if pago['estado_pago'].lower() == 'pendiente':
+        cur.execute("""
+            SELECT SUM(monto) AS total_pagado
+            FROM pagos
+            WHERE id_venta = %s
+        """, (venta_id,))
+        resultado = cur.fetchone()
+        monto_pagado = resultado['total_pagado'] or 0
+        monto_faltante = pago['venta_total'] - monto_pagado
+
+    # 4. Crear PDF
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+
+    # Colores
+    azul = (50, 130, 184)
+    gris = (230, 230, 230)
+
+    # Encabezado
+    pdf.set_fill_color(*azul)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(0, 15, "Optica Triem - Factura de Venta", ln=True, align='C', fill=True)
+
+    pdf.set_text_color(0)
+    pdf.set_font("Arial", '', 12)
+    pdf.ln(5)
+    pdf.cell(0, 10, f"Factura No: {pago['pago_id']}", ln=True)
+    pdf.cell(0, 8, f"Fecha de Pago: {pago['fecha_pago']}", ln=True)
+    pdf.cell(0, 8, f"Estado del Pago: {pago['estado_pago']}", ln=True)
+
+    # Cliente
+    pdf.ln(5)
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, "Informacion del Cliente:", ln=True)
+    pdf.set_font("Arial", '', 12)
+    pdf.cell(0, 8, f"Nombre: {pago['nombres']} {pago['apellidos']}", ln=True)
+    pdf.cell(0, 8, f"Correo: {pago['correo']}", ln=True)
+
+    # Linea divisoria
+    pdf.ln(3)
+    pdf.set_draw_color(180, 180, 180)
+    pdf.set_line_width(0.3)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+
+    # Tabla de productos
+    pdf.ln(8)
+    pdf.set_font("Arial", 'B', 12)
+    pdf.set_fill_color(*gris)
+    pdf.cell(80, 10, "Producto", border=1, fill=True)
+    pdf.cell(30, 10, "Precio", border=1, fill=True)
+    pdf.cell(30, 10, "IVA", border=1, fill=True)
+    pdf.cell(50, 10, "Total", border=1, ln=True, fill=True)
+
+    pdf.set_font("Arial", '', 11)
+    total = 0
+    iva_total = 0
+    fill = False
+    for p in productos:
+        texto = f"{p['tipo_lente']} - {p['descripcion']}"
+        precio = p['precio_unitario']
+        iva = p['iva_unitario']
+        subtotal = precio + iva
+        total += precio
+        iva_total += iva
+
+        pdf.set_fill_color(245, 245, 245) if fill else pdf.set_fill_color(255, 255, 255)
+        pdf.cell(80, 10, texto, border=1, fill=fill)
+        pdf.cell(30, 10, f"${precio:.2f}", border=1, fill=fill)
+        pdf.cell(30, 10, f"${iva:.2f}", border=1, fill=fill)
+        pdf.cell(50, 10, f"${subtotal:.2f}", border=1, ln=True, fill=fill)
+        fill = not fill
+
+    # Totales
+    pdf.ln(5)
+    pdf.set_font("Arial", 'B', 12)
+    pdf.set_fill_color(240, 240, 240)
+    pdf.cell(140, 10, "Subtotal:", border=0)
+    pdf.cell(50, 10, f"${total:.2f}", ln=True)
+    pdf.cell(140, 10, "IVA Total:", border=0)
+    pdf.cell(50, 10, f"${iva_total:.2f}", ln=True)
+    pdf.cell(140, 10, "Total Venta:", border=0)
+    pdf.cell(50, 10, f"${pago['venta_total']:.2f}", ln=True)
+
+    # Mostrar valores pendientes
+    if pago['estado_pago'].lower() == 'pendiente':
+        pdf.cell(140, 10, "Total Pagado:", border=0)
+        pdf.cell(50, 10, f"${monto_pagado:.2f}", ln=True)
+        pdf.cell(140, 10, "Falta por Pagar:", border=0)
+        pdf.cell(50, 10, f"${monto_faltante:.2f}", ln=True)
+
+    # Footer
+    pdf.ln(10)
+    pdf.set_font("Arial", 'I', 10)
+    pdf.set_text_color(100)
+    pdf.cell(0, 10, "Gracias por su compra. Vuelva pronto", ln=True, align='C')
+
+    # Guardar PDF y devolver
+    nombre_pdf = "factura.pdf"
+    pdf.output(nombre_pdf)
+    return send_file(nombre_pdf, as_attachment=True)
