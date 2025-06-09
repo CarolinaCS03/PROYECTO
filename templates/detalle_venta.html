@@ -1,0 +1,35 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h3>Detalle de venta #{{ venta.id }}</h3>
+  <p><strong>Cédula:</strong> {{ venta.cedula }}</p>
+  <p><strong>Cliente:</strong> {{ venta.nombres }} {{ venta.apellidos }} – {{ venta.telefono }}</p>
+
+  <table class="table table-bordered">
+    <thead class="table-dark">
+      <tr>
+        <th>Producto</th>
+        <th>Precio Unitario</th>
+        <th>IVA (15%)</th>
+        <th>Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in productos %}
+        {% set precio_total = p.precio_unitario + p.iva_unitario %}
+        <tr>
+          <td>{{ p.tipo_lente }}</td>
+          <td>${{ '%.2f'|format(p.precio_unitario) }}</td>
+          <td>${{ '%.2f'|format(p.iva_unitario) }}</td>
+          <td>${{ '%.2f'|format(precio_total) }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="text-end">
+    <p><strong>Total IVA:</strong> ${{ '%.2f'|format(venta.iva_total) }}</p>
+    <h4><strong>Total a pagar:</strong> ${{ '%.2f'|format(venta.precio_total) }}</h4>
+  </div>
+</div>
+{% endblock %}
