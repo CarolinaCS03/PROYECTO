@@ -515,3 +515,184 @@ def detalle_venta(id):
         p['iva_unitario'] = p['iva_unitario'] or 0
     print(productos)
     return render_template('detalle_venta.html', venta=venta, productos=productos)
+
+# ----------------------- PAGOS -----------------------
+@app.route('/pagos')
+def pagos():
+    cur = mysql.connection.cursor()
+
+    # Cargar ventas con pagos acumulados
+    cur.execute("""
+        SELECT v.id, v.precio_total, 
+               IFNULL(SUM(p.monto), 0) AS pagado,
+               v.precio_total - IFNULL(SUM(p.monto), 0) AS pendiente
+        FROM ventas v
+        LEFT JOIN pagos p ON p.id_venta = v.id
+        GROUP BY v.id, v.precio_total
+    """)
+    ventas = cur.fetchall()
+    ventas_data = [{
+        'id': row[0],
+        'precio_total': row[1],
+        'pagado': row[2],
+        'pendiente': row[3]
+    } for row in ventas]
+
+    # Cargar pagos existentes
+    cur.execute('SELECT id, id_venta, monto, fecha_pago, estado_pago FROM pagos')
+    data = cur.fetchall()
+    pagos = [{'id': row[0], 'id_venta': row[1], 'monto': row[2], 'fecha_pago': row[3], 'estado_pago': row[4]} for row in data]
+
+    cur.close()
+    return render_template('tabla_pagos.html', pagos=pagos, ventas=ventas_data)
+
+@app.route('/pagos/add', methods=['POST'])
+def add_pago():
+    if request.method == 'POST':
+        id_venta = request.form['id_venta']
+        try:
+            monto = float(request.form['monto'])
+            fecha_pago = request.form['fecha_pago']
+        except ValueError:
+            flash('Monto inválido.', 'error')
+            return redirect(url_for('pagos'))
+
+        cur = mysql.connection.cursor()
+
+        # Verificar que la venta exista
+        cur.execute("SELECT precio_total FROM ventas WHERE id = %s", (id_venta,))
+        venta = cur.fetchone()
+        if not venta:
+            cur.close()
+            flash('Error al agregar el pago: verifica que el ID de la venta sea válido.', 'error')
+            return redirect(url_for('pagos'))
+
+        total_venta = venta[0]
+
+        # Calcular cuánto se ha pagado ya
+        cur.execute("SELECT IFNULL(SUM(monto), 0) FROM pagos WHERE id_venta = %s", (id_venta,))
+        total_pagado = cur.fetchone()[0]
+
+        pendiente = total_venta - total_pagado
+        if monto > pendiente:
+            cur.close()
+            flash(f'El monto no puede superar el saldo pendiente: ${pendiente:.2f}', 'error')
+            return redirect(url_for('pagos'))
+
+        estado_pago = 'Pendiente'
+        if monto == pendiente:
+            estado_pago = 'Completado'
+
+        try:
+            # Insertar pago
+            cur.execute("""
+                INSERT INTO pagos (id_venta, monto, fecha_pago, estado_pago)
+                VALUES (%s, %s, %s, %s)
+            """, (id_venta, monto, fecha_pago, estado_pago))
+            mysql.connection.commit()
+        except Exception as e:
+            mysql.connection.rollback()
+            flash('Error al registrar el pago: ' + str(e), 'error')
+            cur.close()
+            return redirect(url_for('pagos'))
+
+        # Actualizar estado global de la venta o pagos si tienes función
+        actualizar_estado_pago(id_venta)
+
+        cur.close()
+        flash('Pago registrado correctamente', 'success')
+
+    return redirect(url_for('pagos'))
+    
+@app.route('/editar_pago/<int:id>', methods=['GET', 'POST'])
+def editar_pago(id):
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT id, id_venta, monto, fecha_pago, estado_pago FROM pagos WHERE id = %s", [id])
+    pago_row = cur.fetchone()
+    if not pago_row:
+        cur.close()
+        return redirect(url_for('pagos'))
+
+    pago = {
+        'id': pago_row[0],
+        'id_venta': pago_row[1],
+        'monto': pago_row[2],
+        'fecha_pago': pago_row[3],
+        'estado_pago': pago_row[4]
+    }
+
+    cur.execute("""
+        SELECT v.id, v.precio_total, 
+               IFNULL(SUM(p.monto), 0) AS pagado,
+               v.precio_total - IFNULL(SUM(p.monto), 0) AS pendiente
+        FROM ventas v
+        LEFT JOIN pagos p ON p.id_venta = v.id
+        GROUP BY v.id, v.precio_total
+        HAVING pendiente > 0 OR v.id = %s
+    """, (pago['id_venta'],))  # Importante para incluir la venta actual del pago aunque pendiente sea 0
+
+    ventas_rows = cur.fetchall()
+    ventas = []
+    for row in ventas_rows:
+        ventas.append({
+            'id': row[0],
+            'precio_total': row[1],
+            'pagado': row[2],
+            'pendiente': row[3]
+        })
+
+    cur.close()
+
+    if request.method == 'POST':
+        id_venta = request.form['id_venta']
+        monto = request.form['monto']
+        fecha_pago = request.form['fecha_pago']
+        estado_pago = pago['estado_pago']
+
+        cur = mysql.connection.cursor()
+        cur.execute("""
+            UPDATE pagos 
+            SET id_venta = %s, monto = %s, fecha_pago = %s, estado_pago = %s
+            WHERE id = %s
+        """, (id_venta, monto, fecha_pago, estado_pago, id))
+        mysql.connection.commit()
+        cur.close()
+
+        flash('Pago actualizado correctamente')
+        actualizar_estado_pago(id_venta)
+        return redirect(url_for('pagos'))
+
+    return render_template('editar_pago.html', pago=pago, ventas=ventas)
+
+def actualizar_estado_pago(id_venta):
+    cur = mysql.connection.cursor()
+    # Obtener la suma de pagos ya realizados para esa venta
+    cur.execute("SELECT COALESCE(SUM(monto), 0) FROM pagos WHERE id_venta = %s", (id_venta,))
+    suma_pagos = cur.fetchone()[0]
+    
+    # Obtener el precio total de la venta
+    cur.execute("SELECT precio_total FROM ventas WHERE id = %s", (id_venta,))
+    venta = cur.fetchone()
+    if venta is None:
+        cur.close()
+        return  # venta no encontrada
+    
+    precio_total = venta[0]
+    
+    # Determinar estado
+    nuevo_estado = 'Completado' if suma_pagos >= precio_total else 'Pendiente'
+    
+    # Actualizar estado_pago en la tabla pagos para los pagos de esta venta
+    cur.execute("UPDATE pagos SET estado_pago = %s WHERE id_venta = %s", (nuevo_estado, id_venta))
+    
+    mysql.connection.commit()
+    cur.close()
+
+
+@app.route('/eliminar_pago/<int:id>', methods=['POST'])
+def eliminar_pago(id):
+    cur = mysql.connection.cursor()
+    cur.execute('DELETE FROM pagos WHERE id = %s', (id,))
+    mysql.connection.commit()  # Confirmar la eliminación
+    flash('Pago eliminado correctamente')
+    return redirect(url_for('pagos'))
