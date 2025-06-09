@@ -696,3 +696,121 @@ def eliminar_pago(id):
     mysql.connection.commit()  # Confirmar la eliminación
     flash('Pago eliminado correctamente')
     return redirect(url_for('pagos'))
+
+# ----------------------- PRODUCTOS -----------------------
+@app.route('/productos')
+def productos():
+    cur = mysql.connection.cursor()
+    cur.execute('SELECT id, tipo_lente, descripcion, precio_base, iva_total, precio_total FROM productos')
+    data = cur.fetchall()
+    productos = []
+    for row in data:
+        productos.append({
+            'id': row[0],
+            'tipo_lente': row[1],
+            'descripcion': row[2],
+            'precio_base': float(row[3]),
+            'iva_total': float(row[4]),
+            'precio_total': float(row[5]),
+        })
+    cur.close()
+    return render_template('tabla_productos.html', productos=productos)
+
+@app.route('/productos/add', methods=['POST'])
+def add_producto():
+    tipo_lente = request.form['tipo_lente']
+    descripcion = request.form['descripcion']
+    precio_base = float(request.form['precio_base'])
+    aplicar_iva = 'aplicar_iva' in request.form  # True si el checkbox está marcado
+
+    if aplicar_iva:
+        iva_total = round(precio_base * 0.15, 2)
+        precio_total = round(precio_base * 1.15, 2)
+    else:
+        iva_total = 0.00
+        precio_total = precio_base
+
+    cur = mysql.connection.cursor()
+    cur.execute("""
+        INSERT INTO productos (tipo_lente, descripcion, precio_base, iva_total, precio_total)
+        VALUES (%s, %s, %s, %s, %s)
+    """, (tipo_lente, descripcion, precio_base, iva_total, precio_total))
+    mysql.connection.commit()
+    cur.close()
+    flash('Producto agregado correctamente')
+    return redirect(url_for('productos'))
+
+@app.route('/editar_producto/<int:id>', methods=['GET', 'POST'])
+def editar_producto(id):
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT id, tipo_lente, descripcion, precio_base, iva_total, precio_total FROM productos WHERE id = %s", (id,))
+    producto = cur.fetchone()
+    cur.close()
+
+    if not producto:
+        return redirect(url_for('productos'))
+
+    if request.method == 'POST':
+        tipo_lente = request.form['tipo_lente']
+        descripcion = request.form['descripcion']
+        precio_base = float(request.form['precio_base'])
+        aplicar_iva = 'aplicar_iva' in request.form
+
+        if aplicar_iva:
+            iva_total = round(precio_base * 0.15, 2)
+            precio_total = round(precio_base * 1.15, 2)
+        else:
+            iva_total = 0.00
+            precio_total = precio_base
+
+        cur = mysql.connection.cursor()
+        cur.execute("""
+            UPDATE productos
+            SET tipo_lente = %s, descripcion = %s, precio_base = %s, iva_total = %s, precio_total = %s
+            WHERE id = %s
+        """, (tipo_lente, descripcion, precio_base, iva_total, precio_total, id))
+        mysql.connection.commit()
+        cur.close()
+        flash('Producto actualizado correctamente')
+        return redirect(url_for('productos'))
+
+    producto_dict = {
+        'id': producto[0],
+        'tipo_lente': producto[1],
+        'descripcion': producto[2],
+        'precio_base': producto[3],
+        'iva_total': producto[4],
+        'precio_total': producto[5]
+    }
+    return render_template('editar_producto.html', producto=producto_dict)
+
+
+@app.route('/eliminar_producto/<int:id>', methods=['POST'])
+def eliminar_producto(id):
+    cur = mysql.connection.cursor()
+    cur.execute('DELETE FROM productos WHERE id = %s', (id,))
+    mysql.connection.commit()
+    cur.close()
+    flash('Producto eliminado correctamente')
+    return redirect(url_for('productos'))
+
+# ---------- API para el combo de ventas ----------
+@app.route('/api/productos')
+def api_productos():
+    cur = mysql.connection.cursor()
+    cur.execute("""
+        SELECT id, tipo_lente, descripcion, precio_total, iva_total
+        FROM productos
+    """)
+    data = cur.fetchall()
+    cur.close()
+    productos = [{
+        'id'         : row[0],
+        'descripcion': f"{row[1]} – {row[2]}",
+        'precio_unitario'     : float(row[3]),
+        'iva_unitario'        : float(row[4])
+    } for row in data]
+    return jsonify(productos)
+
+if __name__ == '__main__':
+    app.run(debug=True, host='localhost', port=3000)
