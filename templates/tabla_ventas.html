@@ -1,0 +1,227 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="text-center mb-4">Gestión de Ventas</h1>
+    <div class="mb-3">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addVentaModal">Agregar Venta</button>
+    </div>
+
+    <table class="table table-bordered table-striped">
+        <thead class="table-dark text-center">
+            <tr>
+                <th>Cédula</th>
+                <th>Precio Total</th>
+                <th>IVA Total</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for venta in ventas %}
+            <tr>
+                <td>{{ venta.cedula }}</td>
+                <td>${{ "%.2f"|format(venta.precio_total) }}</td>
+                <td>${{ "%.2f"|format(venta.iva_total) }}</td>
+                <td>
+                    <a href="{{ url_for('editar_venta', id=venta.id) }}" class="btn btn-warning btn-sm">Editar</a>
+                    <form action="{{ url_for('eliminar_venta', id=venta.id) }}" method="POST" style="display: inline;">
+                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Estás seguro de que deseas eliminar esta venta?');">Eliminar</button>
+                        <a href="{{ url_for('detalle_venta', id=venta.id) }}" class="btn btn-info btn-sm">Ver Detalle</a>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Modal para agregar venta -->
+<div class="modal fade" id="addVentaModal" tabindex="-1" aria-labelledby="addVentaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('add_venta') }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addVentaLabel">Agregar Venta</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+
+                    <div class="mb-3">
+                        <label for="cedula" class="form-label">Cédula del usuario</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="cedula" name="cedula" required>
+                            <button type="button" class="btn btn-outline-secondary" onclick="buscarCliente()">Buscar</button>
+                        </div>
+                    </div>
+
+                    <div id="infoCliente" style="display: none;">
+                        <div class="form-group">
+                            <label>Nombres:</label>
+                            <input type="text" class="form-control" id="nombres_cliente" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>Apellidos:</label>
+                            <input type="text" class="form-control" id="apellidos_cliente" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>Teléfono:</label>
+                            <input type="text" class="form-control" id="telefono_cliente" disabled>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 mt-3">
+                        <label for="producto_select" class="form-label">Producto</label>
+                        <select class="form-select" id="producto_select" onchange="agregarProductoDesdeSelect()" required>
+                            <option value="">Seleccione un producto</option>
+                        </select>
+                    </div>
+
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Precio</th>
+                                <th>IVA (15%)</th>
+                                <th>Acciones</th>
+                            </tr>
+                            <input type="hidden" name="productos[]" id="productos_input">
+                        </thead>
+                        <tbody id="tablaProductos">
+                            <!-- Productos agregados dinámicamente -->
+                        </tbody>
+                    </table>
+
+                    <!-- Resumen -->
+                    <hr>
+                    <div class="mb-3">
+                        <label class="form-label">Subtotal:</label>
+                        <input type="text" class="form-control" id="subtotal_visible" readonly>
+                        <input type="hidden" name="subtotal" id="subtotal">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">IVA Total (15%):</label>
+                        <input type="text" class="form-control" id="iva_total_visible" readonly>
+                        <input type="hidden" name="iva_total" id="iva_total">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Total (con IVA):</label>
+                        <input type="text" class="form-control" id="precio_total_visible" readonly>
+                        <input type="hidden" name="precio_total" id="precio_total">
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Agregar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Scripts -->
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    fetch("/api/productos")
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById("producto_select");
+            data.forEach(producto => {
+                const option = document.createElement("option");
+                option.value = producto.id;
+                option.textContent = producto.descripcion;
+                option.setAttribute("data-precio", producto.precio_unitario);
+                option.setAttribute("data-iva", producto.iva_unitario);
+                select.appendChild(option);
+            });
+        })
+        .catch(error => console.error("Error cargando productos:", error));
+});
+
+function buscarCliente() {
+    const cedula = document.getElementById("cedula").value;
+    if (!cedula) {
+        alert("Por favor, ingrese una cédula.");
+        return;
+    }
+
+    fetch(`/buscar_cliente?cedula=${cedula}`)
+        .then(response => {
+            if (!response.ok) throw new Error("Cliente no encontrado");
+            return response.json();
+        })
+        .then(data => {
+            document.getElementById("nombres_cliente").value = data.nombres;
+            document.getElementById("apellidos_cliente").value = data.apellidos;
+            document.getElementById("telefono_cliente").value = data.telefono;
+            document.getElementById("infoCliente").style.display = "block";
+        })
+        .catch(error => {
+            alert(error.message);
+            document.getElementById("infoCliente").style.display = "none";
+        });
+}
+
+let productosSeleccionados = [];
+
+function agregarProductoDesdeSelect() {
+    const select = document.getElementById("producto_select");
+    const option = select.options[select.selectedIndex];
+    if (!option || !option.value) return;
+
+    const id = option.value;
+    const nombre = option.textContent;
+    const precio = parseFloat(option.getAttribute("data-precio"));
+    const iva = parseFloat(option.getAttribute("data-iva"));
+    const yaExiste = productosSeleccionados.some(p => p.id === id);
+
+    if (yaExiste) {
+        alert("Este producto ya está en la lista.");
+        return;
+    }
+
+    productosSeleccionados.push({ id, nombre, precio, iva });
+    actualizarTabla();
+}
+
+function eliminarProducto(index) {
+    productosSeleccionados.splice(index, 1);
+    actualizarTabla();
+}
+
+function actualizarTabla() {
+    const tabla = document.getElementById("tablaProductos");
+    tabla.innerHTML = "";
+
+    let subtotal = 0;
+    let ivaTotal = 0;
+
+    productosSeleccionados.forEach((producto, index) => {
+        tabla.innerHTML += `
+            <tr>
+                <td>${producto.nombre}</td>
+                <td>$${producto.precio.toFixed(2)}</td>
+                <td>$${producto.iva.toFixed(2)}</td>
+                <td><button type="button" class="btn btn-danger btn-sm" onclick="eliminarProducto(${index})">Eliminar</button></td>
+            </tr>
+        `;
+        subtotal += producto.precio;
+        ivaTotal += producto.iva;
+    });
+
+    const total = subtotal + ivaTotal;
+
+    document.getElementById("subtotal_visible").value = subtotal.toFixed(2);
+    document.getElementById("iva_total_visible").value = ivaTotal.toFixed(2);
+    document.getElementById("precio_total_visible").value = total.toFixed(2);
+
+    document.getElementById("subtotal").value = subtotal.toFixed(2);
+    document.getElementById("iva_total").value = ivaTotal.toFixed(2);
+    document.getElementById("precio_total").value = total.toFixed(2);
+
+    // Actualiza input oculto con los IDs
+    const productosIds = productosSeleccionados.map(p => p.id);
+    document.getElementById("productos_input").value = productosIds.join(',');
+}
+</script>
+{% endblock %}
