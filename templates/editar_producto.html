@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Producto</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <h1 class="my-4">Editar Producto</h1>
+        <form method="POST">
+            <div class="mb-3">
+                <label for="tipo_lente" class="form-label">Tipo de lente</label>
+                <select class="form-select" id="tipo_lente" name="tipo_lente" required>
+                    <option value="" disabled>Seleccione el tipo de lente</option>
+                    <option value="Lente Monofocal" {{ 'selected' if producto.tipo_lente == 'Lente Monofocal' else '' }}>Lente Monofocal</option>
+                    <option value="Lente Bifocal" {{ 'selected' if producto.tipo_lente == 'Lente Bifocal' else '' }}>Lente Bifocal</option>
+                    <option value="Lente Progresivo" {{ 'selected' if producto.tipo_lente == 'Lente Progresivo' else '' }}>Lente Progresivo</option>
+                    <option value="Lente Fotocromático" {{ 'selected' if producto.tipo_lente == 'Lente Fotocromático' else '' }}>Lente Fotocromático</option>
+                    <option value="Lente Polarizado" {{ 'selected' if producto.tipo_lente == 'Lente Polarizado' else '' }}>Lente Polarizado</option>
+                    <option value="Lente Antirreflejo" {{ 'selected' if producto.tipo_lente == 'Lente Antirreflejo' else '' }}>Lente Antirreflejo</option>
+                </select>
+            </div>
+            
+            <div class="mb-3">
+                <label for="descripcion" class="form-label">Descripción</label>
+                <textarea class="form-control" id="descripcion" name="descripcion" rows="3" required>{{ producto.descripcion }}</textarea>
+            </div>
+
+            <div class="mb-3">
+                <label for="precio_base" class="form-label">Precio Base</label>
+                <input type="number" step="0.01" class="form-control" id="precio_base" name="precio_base" value="{{ producto.precio_base }}" min="0" required>
+            </div>
+
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" value="1" id="aplicar_iva" name="aplicar_iva" {{ 'checked' if producto.aplicar_iva else '' }}>
+                <label class="form-check-label" for="aplicar_iva">
+                    Aplicar IVA 15%
+                </label>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+        </form>
+
+        <a href="{{ url_for('productos') }}" class="btn btn-secondary mt-3">Volver a la lista de productos</a>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
