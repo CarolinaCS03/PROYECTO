@@ -5,6 +5,7 @@
 #SOLORZANO CHAVEZ DANIELA THAIZ
 #--------------------------------------------------------
 
+import io
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from datetime import datetime
 from flask_mysqldb import MySQL
@@ -320,9 +321,20 @@ def generar_factura(pago_id):
     pdf.cell(0, 10, "Gracias por su compra. Vuelva pronto", ln=True, align='C')
 
     # Guardar PDF y devolver
-    nombre_pdf = "factura.pdf"
-    pdf.output(nombre_pdf)
-    return send_file(nombre_pdf, as_attachment=True)
+    # Convertir PDF a bytes
+    pdf_data = pdf.output(dest='S').encode('latin1')  # 'latin1' es necesario para mantener los caracteres binarios del PDF
+    pdf_buffer = io.BytesIO(pdf_data)
+
+    # Nombre del archivo que se descargará
+    nombre_archivo = f"factura_{pago_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
+
+    # Enviar como archivo descargable
+    return send_file(
+        pdf_buffer,
+        as_attachment=True,
+        download_name=nombre_archivo,
+        mimetype='application/pdf'
+    )
 
 # ----------------------- VENTAS -----------------------
 @app.route('/ventas')
