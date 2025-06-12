@@ -69,17 +69,27 @@
                         </div>
                     </div>
 
-                    <div class="mb-3 mt-3">
-                        <label for="producto_select" class="form-label">Producto</label>
-                        <select class="form-select" id="producto_select" onchange="agregarProductoDesdeSelect()" required>
-                            <option value="">Seleccione un producto</option>
-                        </select>
+                    <div class="row mb-3 mt-3">
+                        <div class="col-md-8">
+                            <label for="producto_select" class="form-label">Producto</label>
+                            <select class="form-select" id="producto_select" required>
+                                <option value="">Seleccione un producto</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="cantidad_producto" class="form-label">Cantidad</label>
+                            <input type="number" id="cantidad_producto" class="form-control" value="1" min="1">
+                        </div>
+                        <div class="col-md-12 mt-2 text-end">
+                            <button type="button" class="btn btn-success" onclick="agregarProductoDesdeSelect()">Agregar producto</button>
+                        </div>
                     </div>
 
                     <table class="table table-bordered">
                         <thead>
                             <tr>
                                 <th>Producto</th>
+                                <th>Cantidad</th>
                                 <th>Precio</th>
                                 <th>IVA (15%)</th>
                                 <th>Acciones</th>
@@ -166,21 +176,32 @@ let productosSeleccionados = [];
 
 function agregarProductoDesdeSelect() {
     const select = document.getElementById("producto_select");
+    const cantidadInput = document.getElementById("cantidad_producto");
     const option = select.options[select.selectedIndex];
+
     if (!option || !option.value) return;
 
     const id = option.value;
     const nombre = option.textContent;
-    const precio = parseFloat(option.getAttribute("data-precio"));
-    const iva = parseFloat(option.getAttribute("data-iva"));
-    const yaExiste = productosSeleccionados.some(p => p.id === id);
+    const precioUnit = parseFloat(option.getAttribute("data-precio"));
+    const ivaUnit = parseFloat(option.getAttribute("data-iva"));
+    const cantidad = parseInt(cantidadInput.value);
 
+    if (isNaN(cantidad) || cantidad < 1) {
+        alert("Cantidad no válida.");
+        return;
+    }
+
+    const yaExiste = productosSeleccionados.some(p => p.id === id);
     if (yaExiste) {
         alert("Este producto ya está en la lista.");
         return;
     }
 
-    productosSeleccionados.push({ id, nombre, precio, iva });
+    const precioTotal = precioUnit * cantidad;
+    const ivaTotal = ivaUnit * cantidad;
+
+    productosSeleccionados.push({ id, nombre, precio: precioTotal, iva: ivaTotal, cantidad });
     actualizarTabla();
 }
 
@@ -200,6 +221,7 @@ function actualizarTabla() {
         tabla.innerHTML += `
             <tr>
                 <td>${producto.nombre}</td>
+                <td>${producto.cantidad}</td>
                 <td>$${producto.precio.toFixed(2)}</td>
                 <td>$${producto.iva.toFixed(2)}</td>
                 <td><button type="button" class="btn btn-danger btn-sm" onclick="eliminarProducto(${index})">Eliminar</button></td>

@@ -13,7 +13,26 @@ from dotenv import load_dotenv
 from flask import send_file
 from fpdf import FPDF
 import os
-from MySQLdb.cursors import DictCursor  #
+from MySQLdb.cursors import DictCursor  
+
+import matplotlib
+matplotlib.use('Agg')
+
+import matplotlib.pyplot as plt
+from reportlab.lib.utils import ImageReader
+from reportlab.lib.units import inch
+
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, Spacer
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from collections import defaultdict
+from decimal import Decimal
+
+from reportlab.lib import colors    
+from io import BytesIO
+from reportlab.pdfgen import canvas
+
 
 load_dotenv()
 app = Flask(__name__)
@@ -375,7 +394,7 @@ def add_venta():
             if producto:
                 precio = producto[0]
                 iva = producto[1]
-                cantidad = 1  # podrías tomarla de `cantidades` si se usa
+                cantidad = 1
 
                 cur.execute("""
                     INSERT INTO detalle_venta (id_venta, id_producto, cantidad, precio_unitario, iva_unitario)
@@ -506,9 +525,10 @@ def detalle_venta(id):
     cols = [col[0] for col in cur.description]
     venta = dict(zip(cols, row))
     
-    # Obtener productos relacionados con la venta desde tabla 'detalle_venta'
+    # Obtener productos relacionados con la venta
     cur.execute("""
         SELECT p.tipo_lente,
+               dv.cantidad,
                dv.precio_unitario,
                dv.iva_unitario,
                (dv.precio_unitario * dv.cantidad) AS total_unitario
@@ -519,13 +539,13 @@ def detalle_venta(id):
     rows = cur.fetchall()
 
     productos = [dict(zip([col[0] for col in cur.description], row)) for row in rows]
-    
+
 
     cur.close()
     for p in productos:
         p['precio_unitario'] = p['precio_unitario'] or 0
         p['iva_unitario'] = p['iva_unitario'] or 0
-    print(productos)
+        
     return render_template('detalle_venta.html', venta=venta, productos=productos)
 
 # ----------------------- PAGOS -----------------------
@@ -823,6 +843,208 @@ def api_productos():
         'iva_unitario'        : float(row[4])
     } for row in data]
     return jsonify(productos)
+
+#---------------- Reporte -----------------
+
+@app.route('/reporte_global')
+def reporte_global():
+    cursor = mysql.connection.cursor()
+
+    # 1. Obtener todos los clientes
+    cursor.execute("SELECT cedula, CONCAT_WS(' ', nombres, apellidos) AS nombre FROM clientes")
+    clientes = cursor.fetchall()
+
+    resultados = []
+    resumen_general = defaultdict(lambda: [0, Decimal('0.00')])
+
+    for cedula, nombre in clientes:
+        cursor.execute("SELECT COUNT(*) FROM ventas WHERE cedula = %s", (cedula,))
+        total_ventas = cursor.fetchone()[0]
+
+        cursor.execute("""
+            SELECT 
+                p.tipo_lente,
+                SUM(dv.cantidad) AS total_cantidad,
+                SUM(dv.cantidad * dv.precio_unitario) AS total_monto
+            FROM ventas v
+            JOIN detalle_venta dv ON dv.id_venta = v.id
+            JOIN productos p ON p.id = dv.id_producto
+            WHERE v.cedula = %s
+            GROUP BY p.tipo_lente
+        """, (cedula,))
+        productos = cursor.fetchall()
+
+        for tipo, cantidad, monto in productos:
+            resumen_general[tipo][0] += int(cantidad)
+            resumen_general[tipo][1] += monto
+
+        total_gastado = sum(float(monto) for _, _, monto in productos)
+
+        resultados.append({
+            'cedula': cedula,
+            'nombre': nombre,
+            'ventas': total_ventas,
+            'productos': productos,
+            'total': total_gastado
+        })
+
+    cursor.execute("SELECT SUM(monto) FROM pagos")
+    total_pagos = cursor.fetchone()[0] or Decimal('0.00')
+
+    cursor.execute("SELECT SUM(dv.cantidad * dv.precio_unitario) FROM detalle_venta dv")
+    total_ventas_monto = cursor.fetchone()[0] or Decimal('0.00')
+    cursor.close()
+
+    total_general = float(total_ventas_monto) + float(total_pagos)
+
+    # 2. Generar PDF
+    buffer = BytesIO()
+    pdf = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
+    margen = 40
+    y = height - 50
+
+    # Encabezado con franja azul
+    pdf.setFillColor(colors.HexColor("#003366"))
+    pdf.rect(0, y - 30, width, 60, fill=1, stroke=0)
+    pdf.setFillColor(colors.white)
+    pdf.setFont("Helvetica-Bold", 16)
+    pdf.drawCentredString(width / 2, y, "SISTEMA DE GESTIÓN DE VENTAS OPTICATRIEM")
+    pdf.setFont("Helvetica-Bold", 13)
+    pdf.drawCentredString(width / 2, y - 20, "REPORTE GLOBAL DE CLIENTES")
+    y -= 80
+
+    # --- BLOQUE POR CLIENTE ---
+    for cliente in resultados:
+        if y < 120:
+            pdf.showPage()
+            y = height - 50
+            pdf.setFillColor(colors.HexColor("#003366"))
+            pdf.rect(0, y - 30, width, 60, fill=1, stroke=0)
+            pdf.setFillColor(colors.white)
+            pdf.setFont("Helvetica-Bold", 16)
+            pdf.drawCentredString(width / 2, y, "SISTEMA DE GESTIÓN DE VENTAS OPTICATRIEM")
+            pdf.setFont("Helvetica-Bold", 13)
+            pdf.drawCentredString(width / 2, y - 20, "REPORTE GLOBAL DE CLIENTES")
+            y -= 80
+
+        pdf.setFillColor(colors.black)
+        pdf.setFont("Helvetica-Bold", 10)
+        pdf.drawString(margen, y, f"Cédula: {cliente['cedula']}")
+        pdf.drawString(margen + 200, y, f"Nombre: {cliente['nombre']}")
+        pdf.drawString(margen + 450, y, f"Ventas: {cliente['ventas']}")
+        y -= 15
+
+        # Encabezado de tabla con gris claro
+        pdf.setFillColor(colors.lightgrey)
+        pdf.rect(margen + 10, y - 2, width - 2*margen - 20, 14, fill=1, stroke=0)
+        pdf.setFillColor(colors.black)
+        pdf.setFont("Helvetica-Bold", 9)
+        pdf.drawString(margen + 20, y, "Tipo de Lente")
+        pdf.drawString(margen + 200, y, "Cantidad")
+        pdf.drawString(margen + 320, y, "Monto ($)")
+        y -= 14
+        pdf.setStrokeColor(colors.grey)
+        pdf.setLineWidth(0.3)
+
+        pdf.setFont("Helvetica", 8)
+        for tipo, cantidad, monto in cliente['productos']:
+            pdf.drawString(margen + 20, y, tipo)
+            pdf.drawRightString(margen + 270, y, str(int(cantidad)))
+            pdf.drawRightString(margen + 410, y, f"{float(monto):,.2f}")
+            pdf.line(margen + 10, y - 2, width - margen - 10, y - 2)
+            y -= 12
+            if y < 80:
+                pdf.showPage()
+                y = height - 50
+
+        pdf.setFont("Helvetica-Bold", 9)
+        pdf.drawRightString(margen + 410, y, f"Total gastado: ${cliente['total']:,.2f}")
+        y -= 25
+        pdf.setLineWidth(0.5)
+        pdf.setStrokeColor(colors.darkgrey)
+        pdf.line(margen, y, width - margen, y)
+        y -= 25
+
+    # --- RESUMEN GENERAL POR PRODUCTO ---
+    if y < 140:
+        pdf.showPage()
+        y = height - 50
+
+    pdf.setFont("Helvetica-Bold", 12)
+    pdf.setFillColor(colors.HexColor("#003366"))
+    pdf.drawString(margen, y, "Resumen general por producto:")
+    y -= 25
+
+    pdf.setFillColor(colors.lightgrey)
+    pdf.rect(margen + 10, y - 2, width - 2*margen - 20, 14, fill=1, stroke=0)
+    pdf.setFillColor(colors.black)
+    pdf.setFont("Helvetica-Bold", 9)
+    pdf.drawString(margen + 20, y, "Tipo de Lente")
+    pdf.drawString(margen + 200, y, "Cantidad Total")
+    pdf.drawString(margen + 320, y, "Monto Total ($)")
+    y -= 14
+
+    pdf.setFont("Helvetica", 8)
+    for tipo, (cantidad, monto) in resumen_general.items():
+        pdf.drawString(margen + 20, y, tipo)
+        pdf.drawRightString(margen + 270, y, str(cantidad))
+        pdf.drawRightString(margen + 410, y, f"{float(monto):,.2f}")
+        pdf.line(margen + 10, y - 2, width - margen - 10, y - 2)
+        y -= 12
+        if y < 80:
+            pdf.showPage()
+            y = height - 50
+
+    # --- RESUMEN DE GANANCIAS ---
+    y -= 25
+    pdf.setFillColor(colors.HexColor("#003366"))
+    pdf.setFont("Helvetica-Bold", 12)
+    pdf.drawString(margen, y, "Resumen de ganancias")
+    y -= 20
+    pdf.setFillColor(colors.black)
+    pdf.setFont("Helvetica", 9)
+    pdf.drawString(margen + 20, y, f"Total por ventas: ${float(total_ventas_monto):,.2f}")
+    y -= 15
+    pdf.drawString(margen + 20, y, f"Total por pagos: ${float(total_pagos):,.2f}")
+    y -= 15
+    pdf.setFont("Helvetica-Bold", 10)
+    pdf.drawString(margen + 20, y, f"Total general: ${total_general:,.2f}")
+    y -= 35
+
+    # --- GRÁFICO RESUMEN DE GANANCIAS ---
+    fig, ax = plt.subplots(figsize=(4, 3))
+    bars = ax.bar(['Ventas', 'Pagos'], [float(total_ventas_monto), float(total_pagos)], color=['#1f77b4', '#ff7f0e'])
+    ax.bar_label(bars, fmt='%.2f')
+    ax.set_ylabel('Monto ($)')
+    ax.set_title('Ingresos: Ventas vs Pagos')
+    plt.tight_layout()
+    img_buffer = BytesIO()
+    plt.savefig(img_buffer, format='png', transparent=True)
+    plt.close(fig)
+    img_buffer.seek(0)
+
+    if y < 260:
+        pdf.showPage()
+        y = height - 50
+
+    pdf.setFont("Helvetica-Bold", 11)
+    pdf.drawString(margen, y, "Gráfico de ingresos (Ventas vs Pagos)")
+    y -= 40
+
+    img = ImageReader(img_buffer)
+    pdf.drawImage(img, margen, y - 180, width=5 * inch, height=3 * inch, mask='auto')
+    y -= 200
+
+    pdf.save()
+    buffer.seek(0)
+
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name="reporte_clientes.pdf",
+        mimetype="application/pdf"
+    )
 
 if __name__ == '__main__':
     app.run(debug=True, host='localhost', port=3000)

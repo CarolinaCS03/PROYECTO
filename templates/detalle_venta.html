@@ -9,6 +9,7 @@
     <thead class="table-dark">
       <tr>
         <th>Producto</th>
+        <th>Cantidad</th>
         <th>Precio Unitario</th>
         <th>IVA (15%)</th>
         <th>Total</th>
@@ -19,6 +20,7 @@
         {% set precio_total = p.precio_unitario + p.iva_unitario %}
         <tr>
           <td>{{ p.tipo_lente }}</td>
+          <td>{{ p.cantidad }}</td>
           <td>${{ '%.2f'|format(p.precio_unitario) }}</td>
           <td>${{ '%.2f'|format(p.iva_unitario) }}</td>
           <td>${{ '%.2f'|format(precio_total) }}</td>
